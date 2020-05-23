@@ -18,12 +18,18 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
+
+	"github.com/AlecAivazis/survey"
+	"github.com/AlecAivazis/survey/terminal"
 
 	"github.com/mattboran/libgen-go/api"
 
 	"github.com/spf13/cobra"
 )
+
+const perPage = 25
 
 // searchCmd represents the search command
 var searchCmd = &cobra.Command{
@@ -39,10 +45,10 @@ func init() {
 	rootCmd.AddCommand(searchCmd)
 	searchCmd.Flags().StringP("criteria", "c", "", "Criteria")
 	searchCmd.Flags().StringP("format", "f", "", "Result format")
+	searchCmd.Flags().IntP("page", "p", 1, "Page number")
 }
 
 func processSearchOpt(cmd *cobra.Command, args []string) (*api.FictionSearchInput, error) {
-
 	criteria, err := cmd.Flags().GetString("criteria")
 	if err != nil {
 		return nil, err
@@ -59,28 +65,90 @@ func processSearchOpt(cmd *cobra.Command, args []string) (*api.FictionSearchInpu
 		return nil, handleUnsupportedFormat(format)
 	}
 
+	page, err := cmd.Flags().GetInt("page")
+	if err != nil {
+		return nil, err
+	}
+
 	return &api.FictionSearchInput{
 		Query:    args,
 		Criteria: criteria,
 		Format:   format,
+		Page:     page,
 	}, nil
+}
+
+func options(s *api.SearchResults) []string {
+	var options []string
+	if s.PageNumber > 1 {
+		options = append(options, "prev")
+	}
+	startIndex := (s.PageNumber - 1) * perPage
+	var endIndex = s.PageNumber*perPage + 1
+	if endIndex > len(s.Books)+1 {
+		endIndex = len(s.Books) + 1
+	}
+	for i, book := range (s.Books)[startIndex:endIndex] {
+		authors := strings.Join(book.Authors, ", ")
+		option := fmt.Sprintf("%d - %s by %s (%s)", i, book.Title, authors, book.FileType)
+		options = append(options, option)
+	}
+	if s.HasNextPage {
+		options = append(options, "next")
+	}
+	options = append(options, "exit")
+	return options
 }
 
 func handleSearch(cmd *cobra.Command, args []string) {
 	input, err := processSearchOpt(cmd, args)
 	if err != nil {
 		fmt.Println(err.Error())
+		os.Exit(1)
 	}
-	fmt.Println("Calling api.FictionSearch")
-	books, err := api.FictionSearch(input)
-	if err != nil {
+
+	if askSurvey(input) != nil {
 		fmt.Println(err.Error())
+		os.Exit(1)
 	}
-	fmt.Printf("Got back %d books on page 1\n", len(books))
-	for i, book := range books {
-		authors := strings.Join(book.Authors, ", ")
-		fmt.Printf("%d - %s by %s (%s)\n", i, book.Title, authors, book.FileType)
+}
+
+func askSurvey(input *api.FictionSearchInput) error {
+	results, err := api.FictionSearch(input)
+	if err != nil {
+		return err
 	}
+
+	choice := ""
+	prompt := &survey.Select{
+		Message: "Chose a book",
+		Options: options(results),
+	}
+	err = survey.AskOne(prompt, &choice, survey.WithPageSize(perPage))
+	if err == terminal.InterruptErr {
+		os.Exit(0)
+	} else if err != nil {
+		panic(err)
+	}
+
+	if choice == "prev" {
+		return askSurvey(&api.FictionSearchInput{
+			Query:    input.Query,
+			Format:   input.Format,
+			Criteria: input.Criteria,
+			Page:     input.Page - 1,
+		})
+	}
+	if choice == "next" {
+		return askSurvey(&api.FictionSearchInput{
+			Query:    input.Query,
+			Format:   input.Format,
+			Criteria: input.Criteria,
+			Page:     input.Page + 1,
+		})
+	}
+	fmt.Printf("Chose %s\n", choice)
+	return nil
 }
 
 func handleUnsupportedCriteria(choice string) error {

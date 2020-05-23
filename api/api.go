@@ -27,6 +27,7 @@ const (
 
 type SearchInput interface {
 	URL() (*url.URL, error)
+	NextPage() SearchInput
 }
 
 type Book struct {
@@ -38,6 +39,8 @@ type Book struct {
 	Mirrors  []string
 }
 
-type SearchResult interface {
-	getBooks() []Book
+type SearchResults struct {
+	PageNumber  int
+	Books       []Book
+	HasNextPage bool
 }

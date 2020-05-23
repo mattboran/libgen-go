@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -13,6 +14,7 @@ type FictionSearchInput struct {
 	Query    []string
 	Criteria string
 	Format   string
+	Page     int
 }
 
 var FictionSearchCriteria = []string{
@@ -35,14 +37,9 @@ var FictionFormats = []string{
 func (input FictionSearchInput) URL() (*url.URL, error) {
 	params := url.Values{}
 
-	if input.Criteria != "" {
-		params.Add("criteria", input.Criteria)
-	}
-
-	if input.Format != "" {
-		params.Add("format", input.Format)
-	}
-
+	params.Add("criteria", input.Criteria)
+	params.Add("format", input.Format)
+	params.Add("page", strconv.Itoa(input.Page))
 	params.Add("q", strings.Join(input.Query, " "))
 
 	baseURL, err := url.Parse(BaseURL)
@@ -55,31 +52,39 @@ func (input FictionSearchInput) URL() (*url.URL, error) {
 	return baseURL, nil
 }
 
-func FictionSearch(input *FictionSearchInput) ([]Book, error) {
-	var result []Book
+func (input FictionSearchInput) NextPage() FictionSearchInput {
+	return FictionSearchInput{
+		Query:    input.Query,
+		Criteria: input.Criteria,
+		Format:   input.Format,
+		Page:     input.Page + 1,
+	}
+}
+
+func FictionSearch(input *FictionSearchInput) (*SearchResults, error) {
 	url, err := input.URL()
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 
 	fmt.Printf("Input url %s\n", url)
 
 	res, err := http.Get(url.String())
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return result, err
+		return nil, err
 	}
 
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 
 	rows := doc.Find("tr")
-	fmt.Printf("Found %d rows\n", rows.Length())
+	var books []Book
 	rows.Each(func(i int, s *goquery.Selection) {
 		if i == 0 {
 			return
@@ -92,29 +97,35 @@ func FictionSearch(input *FictionSearchInput) ([]Book, error) {
 				text := trim(col.Text())
 				authors = strings.Split(text, ";")
 			case 2:
-				title = strings.ReplaceAll(col.Text(), "\n", "")
+				title = trim(col.Text())
 			case 3:
-				language = strings.ReplaceAll(col.Text(), "\n", "")
+				language = trim(col.Text())
 			case 4:
 				fileSection := strings.Split(trim(col.Text()), " / ")
-				fileType = strings.ReplaceAll(fileSection[0], "\n", "")
-				fileSize = strings.ReplaceAll(fileSection[1], "\n", "")
+				fileType = trim(fileSection[0])
+				fileSize = trim(fileSection[1])
 			case 5:
-				// TODO: this is wrong
-				mirrors = strings.Split(col.Text(), " ")
+				col.Find("a[href]").Each(func(k int, item *goquery.Selection) {
+					href, _ := item.Attr("href")
+					mirrors = append(mirrors, href)
+				})
 			}
 		})
-		result = append(result, Book{
+		books = append(books, Book{
 			Authors:  authors,
-			Title:    trim(title),
-			Language: trim(language),
-			FileType: trim(fileType),
-			FileSize: trim(fileSize),
+			Title:    title,
+			Language: language,
+			FileType: fileType,
+			FileSize: fileSize,
 			Mirrors:  mirrors,
 		})
 	})
-
-	return result, nil
+	// TODO: HasNextPage
+	return &SearchResults{
+		PageNumber:  input.Page,
+		Books:       books,
+		HasNextPage: true,
+	}, nil
 }
 
 func trim(s string) string {
