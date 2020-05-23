@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -11,6 +12,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+// FictionSearchInput contains the fields required to search
+// Library Genesis' fiction endpoint.
 type FictionSearchInput struct {
 	Query    []string
 	Criteria string
@@ -18,12 +21,14 @@ type FictionSearchInput struct {
 	Page     int
 }
 
+// FictionSearchCriteria contains the possible Search Criteria strings
 var FictionSearchCriteria = []string{
 	SearchCriteriaAuthors,
 	SearchCriteriaSeries,
 	SearchCriteriaTitle,
 }
 
+// FictionFormats contains the possible Ebook format strings
 var FictionFormats = []string{
 	FormatEPUB,
 	FormatMOBI,
@@ -35,6 +40,7 @@ var FictionFormats = []string{
 	FormatTXT,
 }
 
+// URL returns the encoded URL from FictionSearchInput.
 func (input FictionSearchInput) URL() (*url.URL, error) {
 	params := url.Values{}
 
@@ -53,6 +59,7 @@ func (input FictionSearchInput) URL() (*url.URL, error) {
 	return baseURL, nil
 }
 
+// NextPage returns a copy of FictionSearchInput but with Page incremented
 func (input FictionSearchInput) NextPage() *FictionSearchInput {
 	return &FictionSearchInput{
 		Query:    input.Query,
@@ -62,6 +69,7 @@ func (input FictionSearchInput) NextPage() *FictionSearchInput {
 	}
 }
 
+// PreviousPage returns a copy of FictionSearchInput but with Page decremented
 func (input FictionSearchInput) PreviousPage() *FictionSearchInput {
 	return &FictionSearchInput{
 		Query:    input.Query,
@@ -71,6 +79,9 @@ func (input FictionSearchInput) PreviousPage() *FictionSearchInput {
 	}
 }
 
+// FictionSearch takes the FictionSearchInput and returns a pointer to
+// SearchResults. It performs the necessary HTTP requests and parses
+// the resulting HTML.
 func FictionSearch(input *FictionSearchInput) (*SearchResults, error) {
 	url, err := input.URL()
 	if err != nil {
@@ -81,26 +92,78 @@ func FictionSearch(input *FictionSearchInput) (*SearchResults, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		errorMessage := fmt.Sprintf("Got status code %d", res.StatusCode)
 		return nil, errors.New(errorMessage)
 	}
 
-	doc, err := goquery.NewDocumentFromReader(res.Body)
+	searchResults, err := parseBody(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	return searchResults, nil
+}
+
+func parseBody(body io.ReadCloser) (*SearchResults, error) {
+	doc, err := goquery.NewDocumentFromReader(body)
 	if err != nil {
 		return nil, err
 	}
 
 	rows := doc.Find("tr")
-	var books []Book
-	rows.Each(func(i int, s *goquery.Selection) {
+	var books = []Book{}
+	rows.Each(parseBooksFromTableRows(&books))
+
+	pageNumbers, err := parsePageNumbers(doc.Find(".page_selector"))
+	if err != nil {
+		return &SearchResults{
+			PageNumber:  1,
+			Books:       books,
+			HasNextPage: false,
+		}, nil
+	}
+	return &SearchResults{
+		PageNumber:  pageNumbers.currentPage,
+		Books:       books,
+		HasNextPage: pageNumbers.currentPage < pageNumbers.lastPage,
+	}, nil
+}
+
+type pageNumbers struct {
+	currentPage int
+	lastPage    int
+}
+
+func parsePageNumbers(sel *goquery.Selection) (*pageNumbers, error) {
+	pageSelectionText := sel.First().Text()
+	pages := strings.Split(pageSelectionText[5:], " / ")
+	currentPage, err := strconv.Atoi(pages[0])
+	if err != nil {
+		return nil, err
+	}
+	totalPages, err := strconv.Atoi(pages[1])
+	if err != nil {
+		return nil, err
+	}
+	return &pageNumbers{currentPage, totalPages}, nil
+}
+
+func parseBooksFromTableRows(books *[]Book) func(int, *goquery.Selection) {
+
+	trim := func(s string) string {
+		var text = strings.ReplaceAll(s, "\n", "")
+		text = strings.ReplaceAll(text, "\t", "")
+		return text
+	}
+
+	return func(i int, sel *goquery.Selection) {
 		if i == 0 {
 			return
 		}
 		var authors, mirrors []string
 		var title, language, fileType, fileSize string
-		s.Find("td").Each(func(j int, col *goquery.Selection) {
+		sel.Find("td").Each(func(j int, col *goquery.Selection) {
 			switch j {
 			case 0:
 				text := trim(col.Text())
@@ -120,7 +183,8 @@ func FictionSearch(input *FictionSearchInput) (*SearchResults, error) {
 				})
 			}
 		})
-		books = append(books, Book{
+
+		*books = append(*books, Book{
 			Authors:  authors,
 			Title:    title,
 			Language: language,
@@ -128,27 +192,5 @@ func FictionSearch(input *FictionSearchInput) (*SearchResults, error) {
 			FileSize: fileSize,
 			Mirrors:  mirrors,
 		})
-	})
-
-	pageSelectionText := doc.Find(".page_selector").First().Text()
-	pages := strings.Split(pageSelectionText[5:], " / ")
-	var hasNextPage bool
-	totalPages, err := strconv.Atoi(pages[1])
-	if err != nil {
-		hasNextPage = false
-	} else {
-		hasNextPage = totalPages > input.Page
 	}
-
-	return &SearchResults{
-		PageNumber:  input.Page,
-		Books:       books,
-		HasNextPage: hasNextPage,
-	}, nil
-}
-
-func trim(s string) string {
-	var text = strings.ReplaceAll(s, "\n", "")
-	text = strings.ReplaceAll(text, "\t", "")
-	return text
 }

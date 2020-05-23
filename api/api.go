@@ -8,21 +8,15 @@ const (
 	SearchCriteriaAuthors = "authors"
 	SearchCriteriaTitle   = "title"
 	SearchCriteriaSeries  = "series"
-)
-
-const (
-	FormatEPUB = "epub"
-	FormatMOBI = "mobi"
-	FormatAZW  = "azw"
-	FormatAZW3 = "azw3"
-	FormatFB2  = "fb2"
-	FormatPDF  = "pdf"
-	FormatRTF  = "rtf"
-	FormatTXT  = "txt"
-)
-
-const (
-	BaseURL = "http://gen.lib.rus.ec"
+	FormatEPUB            = "epub"
+	FormatMOBI            = "mobi"
+	FormatAZW             = "azw"
+	FormatAZW3            = "azw3"
+	FormatFB2             = "fb2"
+	FormatPDF             = "pdf"
+	FormatRTF             = "rtf"
+	FormatTXT             = "txt"
+	BaseURL               = "http://gen.lib.rus.ec"
 )
 
 type SearchInput interface {
