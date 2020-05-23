@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -37,27 +38,36 @@ var FictionFormats = []string{
 func (input FictionSearchInput) URL() (*url.URL, error) {
 	params := url.Values{}
 
+	params.Add("q", strings.Join(input.Query, " "))
 	params.Add("criteria", input.Criteria)
 	params.Add("format", input.Format)
 	params.Add("page", strconv.Itoa(input.Page))
-	params.Add("q", strings.Join(input.Query, " "))
 
 	baseURL, err := url.Parse(BaseURL)
 	if err != nil {
 		return nil, err
 	}
 
-	baseURL.Path += "fiction"
+	baseURL.Path += "fiction/"
 	baseURL.RawQuery = params.Encode()
 	return baseURL, nil
 }
 
-func (input FictionSearchInput) NextPage() FictionSearchInput {
-	return FictionSearchInput{
+func (input FictionSearchInput) NextPage() *FictionSearchInput {
+	return &FictionSearchInput{
 		Query:    input.Query,
 		Criteria: input.Criteria,
 		Format:   input.Format,
 		Page:     input.Page + 1,
+	}
+}
+
+func (input FictionSearchInput) PreviousPage() *FictionSearchInput {
+	return &FictionSearchInput{
+		Query:    input.Query,
+		Criteria: input.Criteria,
+		Format:   input.Format,
+		Page:     input.Page - 1,
 	}
 }
 
@@ -67,15 +77,14 @@ func FictionSearch(input *FictionSearchInput) (*SearchResults, error) {
 		return nil, err
 	}
 
-	fmt.Printf("Input url %s\n", url)
-
 	res, err := http.Get(url.String())
 	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, err
+		errorMessage := fmt.Sprintf("Got status code %d", res.StatusCode)
+		return nil, errors.New(errorMessage)
 	}
 
 	doc, err := goquery.NewDocumentFromReader(res.Body)
@@ -120,11 +129,21 @@ func FictionSearch(input *FictionSearchInput) (*SearchResults, error) {
 			Mirrors:  mirrors,
 		})
 	})
-	// TODO: HasNextPage
+
+	pageSelectionText := doc.Find(".page_selector").First().Text()
+	pages := strings.Split(pageSelectionText[5:], " / ")
+	var hasNextPage bool
+	totalPages, err := strconv.Atoi(pages[1])
+	if err != nil {
+		hasNextPage = false
+	} else {
+		hasNextPage = totalPages > input.Page
+	}
+
 	return &SearchResults{
 		PageNumber:  input.Page,
 		Books:       books,
-		HasNextPage: true,
+		HasNextPage: hasNextPage,
 	}, nil
 }
 

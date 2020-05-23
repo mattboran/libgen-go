@@ -29,8 +29,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const perPage = 25
-
 // searchCmd represents the search command
 var searchCmd = &cobra.Command{
 	Use:   "search [string to search for]",
@@ -81,20 +79,15 @@ func processSearchOpt(cmd *cobra.Command, args []string) (*api.FictionSearchInpu
 func options(s *api.SearchResults) []string {
 	var options []string
 	if s.PageNumber > 1 {
-		options = append(options, "prev")
+		options = append(options, "back")
 	}
-	startIndex := (s.PageNumber - 1) * perPage
-	var endIndex = s.PageNumber*perPage + 1
-	if endIndex > len(s.Books)+1 {
-		endIndex = len(s.Books) + 1
-	}
-	for i, book := range (s.Books)[startIndex:endIndex] {
+	for i, book := range s.Books {
 		authors := strings.Join(book.Authors, ", ")
 		option := fmt.Sprintf("%d - %s by %s (%s)", i, book.Title, authors, book.FileType)
 		options = append(options, option)
 	}
 	if s.HasNextPage {
-		options = append(options, "next")
+		options = append(options, "more")
 	}
 	options = append(options, "exit")
 	return options
@@ -121,31 +114,21 @@ func askSurvey(input *api.FictionSearchInput) error {
 
 	choice := ""
 	prompt := &survey.Select{
-		Message: "Chose a book",
 		Options: options(results),
 	}
-	err = survey.AskOne(prompt, &choice, survey.WithPageSize(perPage))
+	err = survey.AskOne(prompt, &choice)
 	if err == terminal.InterruptErr {
 		os.Exit(0)
 	} else if err != nil {
-		panic(err)
+		fmt.Printf(err.Error())
+		os.Exit(1)
 	}
 
-	if choice == "prev" {
-		return askSurvey(&api.FictionSearchInput{
-			Query:    input.Query,
-			Format:   input.Format,
-			Criteria: input.Criteria,
-			Page:     input.Page - 1,
-		})
+	if choice == "back" {
+		return askSurvey(input.PreviousPage())
 	}
-	if choice == "next" {
-		return askSurvey(&api.FictionSearchInput{
-			Query:    input.Query,
-			Format:   input.Format,
-			Criteria: input.Criteria,
-			Page:     input.Page + 1,
-		})
+	if choice == "more" {
+		return askSurvey(input.NextPage())
 	}
 	fmt.Printf("Chose %s\n", choice)
 	return nil

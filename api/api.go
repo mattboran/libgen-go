@@ -27,7 +27,8 @@ const (
 
 type SearchInput interface {
 	URL() (*url.URL, error)
-	NextPage() SearchInput
+	NextPage() *SearchInput
+	PreviousPage() *SearchInput
 }
 
 type Book struct {
