@@ -1,10 +1,7 @@
 package api
 
 import (
-	"errors"
-	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -60,8 +57,8 @@ func (input FictionSearchInput) URL() (*url.URL, error) {
 }
 
 // NextPage returns a copy of FictionSearchInput but with Page incremented
-func (input FictionSearchInput) NextPage() *FictionSearchInput {
-	return &FictionSearchInput{
+func (input FictionSearchInput) NextPage() SearchInput {
+	return FictionSearchInput{
 		Query:    input.Query,
 		Criteria: input.Criteria,
 		Format:   input.Format,
@@ -70,8 +67,8 @@ func (input FictionSearchInput) NextPage() *FictionSearchInput {
 }
 
 // PreviousPage returns a copy of FictionSearchInput but with Page decremented
-func (input FictionSearchInput) PreviousPage() *FictionSearchInput {
-	return &FictionSearchInput{
+func (input FictionSearchInput) PreviousPage() SearchInput {
+	return FictionSearchInput{
 		Query:    input.Query,
 		Criteria: input.Criteria,
 		Format:   input.Format,
@@ -79,33 +76,7 @@ func (input FictionSearchInput) PreviousPage() *FictionSearchInput {
 	}
 }
 
-// FictionSearch takes the FictionSearchInput and returns a pointer to
-// SearchResults. It performs the necessary HTTP requests and parses
-// the resulting HTML.
-func FictionSearch(input *FictionSearchInput) (*SearchResults, error) {
-	url, err := input.URL()
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := http.Get(url.String())
-	if err != nil {
-		return nil, err
-	}
-	if res.StatusCode != 200 {
-		errorMessage := fmt.Sprintf("Got status code %d", res.StatusCode)
-		return nil, errors.New(errorMessage)
-	}
-
-	searchResults, err := parseBody(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-	return searchResults, nil
-}
-
-func parseBody(body io.ReadCloser) (*SearchResults, error) {
+func (input FictionSearchInput) bodyParser(body io.ReadCloser) (*SearchResults, error) {
 	doc, err := goquery.NewDocumentFromReader(body)
 	if err != nil {
 		return nil, err

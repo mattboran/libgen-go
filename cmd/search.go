@@ -100,14 +100,14 @@ func handleSearch(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	if askSurvey(input) != nil {
+	if askSurvey(*input) != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 }
 
-func askSurvey(input *api.FictionSearchInput) error {
-	results, err := api.FictionSearch(input)
+func askSurvey(input api.SearchInput) error {
+	results, err := api.Search(input)
 	if err != nil {
 		return err
 	}
