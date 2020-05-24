@@ -82,8 +82,7 @@ func surveyPromptFromResults(results *api.SearchResults) *survey.Select {
 		options = append(options, "back")
 	}
 	for i, book := range results.Books {
-		authors := strings.Join(book.Authors, ", ")
-		option := fmt.Sprintf("%d - %s (%s) by %s", i, book.Title, book.FileType, authors)
+		option := fmt.Sprintf("%d - %s", i, book.Name())
 		options = append(options, truncateForTerminalOut(option))
 	}
 	if results.HasNextPage {

@@ -37,25 +37,6 @@ var FictionFormats = []string{
 	FormatTXT,
 }
 
-// URL returns the encoded URL from FictionSearchInput.
-func (input FictionSearchInput) URL() (*url.URL, error) {
-	params := url.Values{}
-
-	params.Add("q", strings.Join(input.Query, " "))
-	params.Add("criteria", input.Criteria)
-	params.Add("format", input.Format)
-	params.Add("page", strconv.Itoa(input.Page))
-
-	baseURL, err := url.Parse(BaseURL)
-	if err != nil {
-		return nil, err
-	}
-
-	baseURL.Path += "fiction/"
-	baseURL.RawQuery = params.Encode()
-	return baseURL, nil
-}
-
 // NextPage returns a copy of FictionSearchInput but with Page incremented
 func (input FictionSearchInput) NextPage() SearchInput {
 	return FictionSearchInput{
@@ -76,6 +57,24 @@ func (input FictionSearchInput) PreviousPage() SearchInput {
 	}
 }
 
+func (input FictionSearchInput) url() (*url.URL, error) {
+	params := url.Values{}
+
+	params.Add("q", strings.Join(input.Query, " "))
+	params.Add("criteria", input.Criteria)
+	params.Add("format", input.Format)
+	params.Add("page", strconv.Itoa(input.Page))
+
+	baseURL, err := url.Parse(BaseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	baseURL.Path += "fiction/"
+	baseURL.RawQuery = params.Encode()
+	return baseURL, nil
+}
+
 func (input FictionSearchInput) bodyParser(body io.ReadCloser) (*SearchResults, error) {
 	doc, err := goquery.NewDocumentFromReader(body)
 	if err != nil {
@@ -83,20 +82,20 @@ func (input FictionSearchInput) bodyParser(body io.ReadCloser) (*SearchResults, 
 	}
 
 	rows := doc.Find("tr")
-	var books = []Book{}
-	rows.Each(parseBooksFromTableRows(&books))
+	var results = []DownloadableResult{}
+	rows.Each(parseBooksFromTableRows(&results))
 
 	pageNumbers, err := parsePageNumbers(doc.Find(".page_selector"))
 	if err != nil {
 		return &SearchResults{
 			PageNumber:  1,
-			Books:       books,
+			Books:       results,
 			HasNextPage: false,
 		}, nil
 	}
 	return &SearchResults{
 		PageNumber:  pageNumbers.currentPage,
-		Books:       books,
+		Books:       results,
 		HasNextPage: pageNumbers.currentPage < pageNumbers.lastPage,
 	}, nil
 }
@@ -120,7 +119,7 @@ func parsePageNumbers(sel *goquery.Selection) (*pageNumbers, error) {
 	return &pageNumbers{currentPage, totalPages}, nil
 }
 
-func parseBooksFromTableRows(books *[]Book) func(int, *goquery.Selection) {
+func parseBooksFromTableRows(books *[]DownloadableResult) func(int, *goquery.Selection) {
 
 	trim := func(s string) string {
 		var text = strings.ReplaceAll(s, "\n", "")
@@ -155,13 +154,13 @@ func parseBooksFromTableRows(books *[]Book) func(int, *goquery.Selection) {
 			}
 		})
 
-		*books = append(*books, Book{
-			Authors:  authors,
-			Title:    title,
-			Language: language,
-			FileType: fileType,
-			FileSize: fileSize,
-			Mirrors:  mirrors,
+		*books = append(*books, book{
+			authors:  authors,
+			title:    title,
+			language: language,
+			fileType: fileType,
+			fileSize: fileSize,
+			mirrors:  mirrors,
 		})
 	}
 }

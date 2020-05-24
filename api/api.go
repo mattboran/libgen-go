@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 const (
@@ -25,35 +26,41 @@ const (
 
 // SearchInput is implemented separately by each specific API type
 type SearchInput interface {
-	URL() (*url.URL, error)
+	url() (*url.URL, error)
 	NextPage() SearchInput
 	PreviousPage() SearchInput
 	bodyParser(io.ReadCloser) (*SearchResults, error)
-}
-
-// Book is the basic return result type
-type Book struct {
-	Authors  []string
-	Title    string
-	Language string
-	FileType string
-	FileSize string
-	Mirrors  []string
 }
 
 // SearchResults encapsulates the result type and also provides information on
 // current and the following page.
 type SearchResults struct {
 	PageNumber  int
-	Books       []Book
+	Books       []DownloadableResult
 	HasNextPage bool
+}
+
+// DownloadableResult is implemented specifically by each result type
+type DownloadableResult interface {
+	Name() string
+	GetDownloadURL() string
+	Mirrors() []string
+}
+
+type book struct {
+	authors  []string
+	title    string
+	language string
+	fileType string
+	fileSize string
+	mirrors  []string
 }
 
 // Search takes the SearchInput and returns a pointer to
 // SearchResults. It performs the necessary HTTP requests and parses
 // the resulting HTML.
 func Search(input SearchInput) (*SearchResults, error) {
-	url, err := input.URL()
+	url, err := input.url()
 	if err != nil {
 		return nil, err
 	}
@@ -73,4 +80,21 @@ func Search(input SearchInput) (*SearchResults, error) {
 	}
 	defer res.Body.Close()
 	return searchResults, nil
+}
+
+// Name is the displayable name for a Downloadable book
+func (b book) Name() string {
+	authors := strings.Join(b.authors, ", ")
+	return fmt.Sprintf("%s (%s) by %s", b.title, b.fileType, authors)
+}
+
+// GetDownloadURL performs the required HTTP requests to find the download
+// URL for a given book.
+func (b book) GetDownloadURL() string {
+	return "www.google.com"
+}
+
+// Mirrors returns the list of mirrors available for a given book
+func (b book) Mirrors() []string {
+	return b.mirrors
 }
