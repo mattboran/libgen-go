@@ -18,6 +18,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -82,4 +85,35 @@ func helpFunc(cmd *cobra.Command, args []string) {
 		cmd.Help()
 		os.Exit(0)
 	}
+}
+
+var terminalWidth = func() int {
+	cmd := exec.Command("stty", "size")
+	cmd.Stdin = os.Stdin
+	out, err := cmd.Output()
+	if err != nil {
+		return 80
+	}
+	termSize := strings.Split(string(out), " ")
+	width, err := strconv.Atoi(termSize[1])
+	if err != nil {
+		return 80
+	}
+	return width
+}()
+
+func isContainedInSlice(s string, slice []string) bool {
+	for _, str := range slice {
+		if str == s {
+			return true
+		}
+	}
+	return false
+}
+
+func truncateForTerminalOut(s string) string {
+	if len(s) < (terminalWidth - 5) {
+		return s
+	}
+	return s[:terminalWidth-5] + "..."
 }

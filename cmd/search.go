@@ -76,21 +76,24 @@ func processSearchOpt(cmd *cobra.Command, args []string) (*api.FictionSearchInpu
 	}, nil
 }
 
-func options(s *api.SearchResults) []string {
+func surveyPromptFromResults(results *api.SearchResults) *survey.Select {
 	var options []string
-	if s.PageNumber > 1 {
+	if results.PageNumber > 1 {
 		options = append(options, "back")
 	}
-	for i, book := range s.Books {
+	for i, book := range results.Books {
 		authors := strings.Join(book.Authors, ", ")
-		option := fmt.Sprintf("%d - %s by %s (%s)", i, book.Title, authors, book.FileType)
-		options = append(options, option)
+		option := fmt.Sprintf("%d - %s (%s) by %s", i, book.Title, book.FileType, authors)
+		options = append(options, truncateForTerminalOut(option))
 	}
-	if s.HasNextPage {
+	if results.HasNextPage {
 		options = append(options, "more")
 	}
 	options = append(options, "exit")
-	return options
+
+	return &survey.Select{
+		Options: options,
+	}
 }
 
 func handleSearch(cmd *cobra.Command, args []string) {
@@ -113,9 +116,7 @@ func askSurvey(input api.SearchInput) error {
 	}
 
 	choice := ""
-	prompt := &survey.Select{
-		Options: options(results),
-	}
+	prompt := surveyPromptFromResults(results)
 	err = survey.AskOne(prompt, &choice)
 	if err == terminal.InterruptErr {
 		os.Exit(0)
@@ -148,13 +149,4 @@ func handleUnsupportedFormat(choice string) error {
 		choice,
 		supportedFormatString)
 	return errors.New(errorMessage)
-}
-
-func isContainedInSlice(s string, slice []string) bool {
-	for _, str := range slice {
-		if str == s {
-			return true
-		}
-	}
-	return false
 }
