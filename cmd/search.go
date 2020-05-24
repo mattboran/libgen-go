@@ -147,7 +147,15 @@ func askSurvey(input api.SearchInput) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Chose %s\n", mirror)
+
+	ch := make(chan api.HTTPResult, 0)
+	go api.GetDownloadURL(mirror, ch)
+
+	downloadURLResult := <-ch
+	if downloadURLResult.Error != nil {
+		return downloadURLResult.Error
+	}
+	fmt.Printf("Download URL %s\n", downloadURLResult.Result)
 	return nil
 }
 
