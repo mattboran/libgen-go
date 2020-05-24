@@ -26,9 +26,10 @@ const (
 
 // SearchInput is implemented separately by each specific API type
 type SearchInput interface {
-	url() (*url.URL, error)
+	CurrentPage() int
 	NextPage() SearchInput
 	PreviousPage() SearchInput
+	url() (*url.URL, error)
 	bodyParser(io.ReadCloser) (*SearchResults, error)
 }
 

@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/AlecAivazis/survey"
@@ -95,6 +96,18 @@ func surveyPromptFromResults(results *api.SearchResults) *survey.Select {
 	}
 }
 
+func surveyPromptForMirrorSelection(selection api.DownloadableResult) *survey.Select {
+	var options []string
+	for i, result := range selection.Mirrors() {
+		option := fmt.Sprintf("[%d] - %s", i, truncateForTerminalOut(result))
+		options = append(options, option)
+	}
+	return &survey.Select{
+		Message: "Choose a mirror",
+		Options: options,
+	}
+}
+
 func handleSearch(cmd *cobra.Command, args []string) {
 	input, err := processSearchOpt(cmd, args)
 	if err != nil {
@@ -102,7 +115,10 @@ func handleSearch(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	if askSurvey(*input) != nil {
+	err = askSurvey(*input)
+	if err == terminal.InterruptErr {
+		os.Exit(0)
+	} else if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
@@ -118,10 +134,7 @@ func askSurvey(input api.SearchInput) error {
 	prompt := surveyPromptFromResults(results)
 	err = survey.AskOne(prompt, &choice)
 	if err == terminal.InterruptErr {
-		os.Exit(0)
-	} else if err != nil {
-		fmt.Printf(err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	if choice == "back" {
@@ -130,8 +143,24 @@ func askSurvey(input api.SearchInput) error {
 	if choice == "more" {
 		return askSurvey(input.NextPage())
 	}
-	fmt.Printf("Chose %s\n", choice)
+	mirror, err := surveyChoseResult(choice, results.Books)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Chose %s\n", mirror)
 	return nil
+}
+
+func surveyChoseResult(c string, results []api.DownloadableResult) (string, error) {
+	index, err := strconv.Atoi(strings.Split(c, " ")[0])
+	if err != nil {
+		return "", err
+	}
+	result := results[index]
+	choice := 0
+	prompt := surveyPromptForMirrorSelection(result)
+	err = survey.AskOne(prompt, &choice)
+	return result.Mirrors()[choice], err
 }
 
 func handleUnsupportedCriteria(choice string) error {

@@ -37,6 +37,11 @@ var FictionFormats = []string{
 	FormatTXT,
 }
 
+// CurrentPage returns the selected page number for the given search input
+func (input FictionSearchInput) CurrentPage() int {
+	return input.Page
+}
+
 // NextPage returns a copy of FictionSearchInput but with Page incremented
 func (input FictionSearchInput) NextPage() SearchInput {
 	return FictionSearchInput{
