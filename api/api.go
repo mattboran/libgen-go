@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -47,6 +48,7 @@ type SearchResults struct {
 type DownloadableResult interface {
 	Name() string
 	Mirrors() []string
+	Filename() string
 }
 
 type book struct {
@@ -102,6 +104,12 @@ func (b book) Mirrors() []string {
 	return b.mirrors
 }
 
+// ShortName provides a default filename for use in downloading
+func (b book) Filename() string {
+	title := strings.ReplaceAll(b.title, " ", "_")
+	return fmt.Sprintf("%s.%s", title, strings.ToLower(b.fileType))
+}
+
 // GetDownloadURL performs the required HTTP requests to find the download
 // URL for a given mirror url
 func GetDownloadURL(mirror string, ch chan<- HTTPResult) {
@@ -115,6 +123,7 @@ func GetDownloadURL(mirror string, ch chan<- HTTPResult) {
 		ch <- HTTPResult{"", errors.New(errorMessage)}
 		return
 	}
+	defer res.Body.Close()
 
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
@@ -135,4 +144,23 @@ func GetDownloadURL(mirror string, ch chan<- HTTPResult) {
 	}
 	ch <- HTTPResult{href, nil}
 	return
+}
+
+// DownloadFile downloads the file from the provided uri to the provided path
+func DownloadFile(uri string, filepath string) error {
+	res, err := http.Get(uri)
+	if err != nil {
+		return err
+	}
+
+	defer res.Body.Close()
+
+	out, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, res.Body)
+	return err
 }

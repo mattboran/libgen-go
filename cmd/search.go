@@ -22,6 +22,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mitchellh/go-homedir"
+
 	"github.com/AlecAivazis/survey"
 	"github.com/AlecAivazis/survey/terminal"
 
@@ -108,6 +110,45 @@ func surveyPromptForMirrorSelection(selection api.DownloadableResult) *survey.Se
 	}
 }
 
+func surveyQuestionForDownloadDirectory() *survey.Question {
+	dir, err := homedir.Dir()
+	if err != nil {
+		dir, _ = os.Getwd()
+	}
+	return &survey.Question{
+		Prompt: &survey.Input{
+			Message: "Choose download directory",
+			Default: dir,
+		},
+		Validate: func(val interface{}) error {
+			path, _ := val.(string)
+			_, err := os.Stat(path)
+			return err
+		},
+	}
+}
+
+func surveyQuestionForDownloadFilepath(dir string, d api.DownloadableResult) *survey.Question {
+	// Todo: os path join intsead of + "/"
+	return &survey.Question{
+		Prompt: &survey.Input{
+			Message: "Choose a filename",
+			Default: d.Filename(),
+		},
+		Transform: survey.TransformString(func(s string) string {
+			return dir + "/" + s
+		}),
+		Validate: func(val interface{}) error {
+			filename, _ := val.(string)
+			_, err := os.Stat(filename)
+			if err == nil {
+				return errors.New("File already exists")
+			}
+			return nil
+		},
+	}
+}
+
 func handleSearch(cmd *cobra.Command, args []string) {
 	input, err := processSearchOpt(cmd, args)
 	if err != nil {
@@ -130,6 +171,7 @@ func askSurvey(input api.SearchInput) error {
 		return err
 	}
 
+	// Recursively call this function until a book is selected
 	choice := ""
 	prompt := surveyPromptFromResults(results)
 	err = survey.AskOne(prompt, &choice)
@@ -143,31 +185,62 @@ func askSurvey(input api.SearchInput) error {
 	if choice == "more" {
 		return askSurvey(input.NextPage())
 	}
-	mirror, err := surveyChoseResult(choice, results.Books)
+
+	// Use the choice to select a DownloadableResult based on index
+	result, err := getResultFromChoice(choice, results.Books)
+	if err != nil {
+		return err
+	}
+	// Prompt the user to choose one of the mirrors to download from
+	mirror, err := surveyChooseMirror(result)
 	if err != nil {
 		return err
 	}
 
+	// Get the download URL asynchronously as the user is prompted
+	// for download location.
 	ch := make(chan api.HTTPResult, 0)
 	go api.GetDownloadURL(mirror, ch)
+
+	// Prompt for the download directory and filename
+	dir := ""
+	var dirQuestion = []*survey.Question{surveyQuestionForDownloadDirectory()}
+	err = survey.Ask(dirQuestion, &dir)
+	if err != nil {
+		return err
+	}
+	filepath := ""
+	var pathQuestion = []*survey.Question{surveyQuestionForDownloadFilepath(dir, result)}
+	err = survey.Ask(pathQuestion, &filepath)
+	if err != nil {
+		return err
+	}
 
 	downloadURLResult := <-ch
 	if downloadURLResult.Error != nil {
 		return downloadURLResult.Error
 	}
-	fmt.Printf("Download URL %s\n", downloadURLResult.Result)
+	err = api.DownloadFile(downloadURLResult.Result, filepath)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Saved to %s\n", filepath)
 	return nil
 }
 
-func surveyChoseResult(c string, results []api.DownloadableResult) (string, error) {
+func getResultFromChoice(c string, results []api.DownloadableResult) (api.DownloadableResult, error) {
 	index, err := strconv.Atoi(strings.Split(c, " ")[0])
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	result := results[index]
+	return results[index], nil
+}
+
+func surveyChooseMirror(result api.DownloadableResult) (string, error) {
 	choice := 0
 	prompt := surveyPromptForMirrorSelection(result)
-	err = survey.AskOne(prompt, &choice)
+	err := survey.AskOne(prompt, &choice)
 	return result.Mirrors()[choice], err
 }
 
