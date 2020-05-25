@@ -51,7 +51,6 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.libgen.yaml)")
-	// rootCmd.PersistentFlags().BoolP("help", "h", false, "Show help for libgen")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -74,7 +73,7 @@ func initConfig() {
 
 	viper.AutomaticEnv() // read in environment variables that match
 
-	// If a config file is found, read it in.
+	// TODO: store defualt download location in config
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}

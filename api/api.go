@@ -32,8 +32,8 @@ type SearchInput interface {
 	CurrentPage() int
 	NextPage() SearchInput
 	PreviousPage() SearchInput
-	url() (*url.URL, error)
 	bodyParser(io.ReadCloser) (*SearchResults, error)
+	url() (*url.URL, error)
 }
 
 // SearchResults encapsulates the result type and also provides information on
@@ -92,13 +92,6 @@ func (b book) Name() string {
 	return fmt.Sprintf("%s (%s) by %s", b.title, b.fileType, authors)
 }
 
-// HTTPResult is used as a channel input for async HTTP requests and
-// document parsing.
-type HTTPResult struct {
-	Result string
-	Error  error
-}
-
 // Mirrors returns the list of mirrors available for a given book
 func (b book) Mirrors() []string {
 	return b.mirrors
@@ -108,6 +101,13 @@ func (b book) Mirrors() []string {
 func (b book) Filename() string {
 	title := strings.ReplaceAll(b.title, " ", "_")
 	return fmt.Sprintf("%s.%s", title, strings.ToLower(b.fileType))
+}
+
+// HTTPResult is used as a channel input for async HTTP requests and
+// document parsing.
+type HTTPResult struct {
+	Result string
+	Error  error
 }
 
 // GetDownloadURL performs the required HTTP requests to find the download
