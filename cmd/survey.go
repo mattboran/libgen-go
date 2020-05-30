@@ -8,10 +8,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/spf13/viper"
+
 	"github.com/AlecAivazis/survey"
 	"github.com/AlecAivazis/survey/terminal"
 	"github.com/mattboran/libgen-go/api"
-	homedir "github.com/mitchellh/go-homedir"
 )
 
 func surveyPromptFromResults(results *api.SearchResults) *survey.Select {
@@ -46,20 +47,13 @@ func surveyPromptForMirrorSelection(selection api.DownloadableResult) *survey.Se
 }
 
 func surveyQuestionForDownloadDirectory() *survey.Question {
-	dir, err := homedir.Dir()
-	if err != nil {
-		dir, _ = os.Getwd()
-	}
+	dir := viper.GetString("download")
 	return &survey.Question{
 		Prompt: &survey.Input{
 			Message: "Choose download directory",
 			Default: dir,
 		},
-		Validate: func(val interface{}) error {
-			path, _ := val.(string)
-			_, err := os.Stat(path)
-			return err
-		},
+		Validate: validateDirectory,
 	}
 }
 

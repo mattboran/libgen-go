@@ -28,7 +28,11 @@ import (
 	"github.com/spf13/viper"
 )
 
+// cfgFile contains the filename for the config file. Default libgen.yaml
 var cfgFile string
+
+// home contains the directory to save the config file. Default $HOME
+var home string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -49,26 +53,26 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.libgen.yaml)")
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+	var err error
+	// Find home directory.
+	home, err = homedir.Dir()
+	if err != nil {
+		fmt.Printf("Could not get home directory.\n")
+		os.Exit(1)
+	}
+
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Find home directory.
-		home, err := homedir.Dir()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		// Search config in home directory with name ".libgen" (without extension).
+		cfgFile = ".libgen"
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".libgen")
+		viper.SetConfigName(cfgFile)
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
@@ -77,6 +81,7 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
+	viper.SetDefault("download", home)
 }
 
 func helpFunc(cmd *cobra.Command, args []string) {
@@ -115,4 +120,10 @@ func truncateForTerminalOut(s string) string {
 		return s
 	}
 	return s[:terminalWidth-5] + "..."
+}
+
+func validateDirectory(val interface{}) error {
+	path, _ := val.(string)
+	_, err := os.Stat(path)
+	return err
 }
