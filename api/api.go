@@ -60,6 +60,11 @@ type book struct {
 	mirrors  []string
 }
 
+type pageNumbers struct {
+	currentPage int
+	lastPage    int
+}
+
 // Search takes the SearchInput and returns a pointer to
 // SearchResults. It performs the necessary HTTP requests and parses
 // the resulting HTML.

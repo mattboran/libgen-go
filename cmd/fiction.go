@@ -44,7 +44,7 @@ func init() {
 	searchFictionCmd.Flags().IntP("page", "p", 1, "Page number")
 }
 
-func processSearchOpt(cmd *cobra.Command, args []string) (*api.FictionSearchInput, error) {
+func processFictionOpt(cmd *cobra.Command, args []string) (*api.FictionSearchInput, error) {
 	criteria, err := cmd.Flags().GetString("criteria")
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func processSearchOpt(cmd *cobra.Command, args []string) (*api.FictionSearchInpu
 }
 
 func handleFictionSearch(cmd *cobra.Command, args []string) {
-	input, err := processSearchOpt(cmd, args)
+	input, err := processFictionOpt(cmd, args)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)

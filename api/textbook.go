@@ -9,65 +9,51 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// FictionSearchInput contains the fields required to search
+// TextbookSearchInput contains the fields required to search
 // Library Genesis' fiction endpoint.
-type FictionSearchInput struct {
+type TextbookSearchInput struct {
 	Query    []string
 	Criteria string
-	Format   string
+	SortBy   string
 	Page     int
 }
 
-// FictionSearchCriteria contains the possible Search Criteria strings
-var FictionSearchCriteria = []string{
+// TextbookSearchCriteria contains the possible Search Criteria strings
+var TextbookSearchCriteria = []string{
 	SearchCriteriaAuthors,
-	SearchCriteriaSeries,
 	SearchCriteriaTitle,
 }
 
-// FictionFormats contains the possible Ebook format strings
-var FictionFormats = []string{
-	FormatEPUB,
-	FormatMOBI,
-	FormatAZW,
-	FormatAZW3,
-	FormatFB2,
-	FormatPDF,
-	FormatRTF,
-	FormatTXT,
-}
-
 // CurrentPage returns the selected page number for the given search input
-func (input FictionSearchInput) CurrentPage() int {
+func (input TextbookSearchInput) CurrentPage() int {
 	return input.Page
 }
 
 // NextPage returns a copy of FictionSearchInput but with Page incremented
-func (input FictionSearchInput) NextPage() SearchInput {
-	return FictionSearchInput{
+func (input TextbookSearchInput) NextPage() SearchInput {
+	return TextbookSearchInput{
 		Query:    input.Query,
 		Criteria: input.Criteria,
-		Format:   input.Format,
+		SortBy:   input.SortBy,
 		Page:     input.Page + 1,
 	}
 }
 
 // PreviousPage returns a copy of FictionSearchInput but with Page decremented
-func (input FictionSearchInput) PreviousPage() SearchInput {
-	return FictionSearchInput{
+func (input TextbookSearchInput) PreviousPage() SearchInput {
+	return TextbookSearchInput{
 		Query:    input.Query,
 		Criteria: input.Criteria,
-		Format:   input.Format,
+		SortBy:   input.SortBy,
 		Page:     input.Page - 1,
 	}
 }
 
-func (input FictionSearchInput) url() (*url.URL, error) {
+func (input TextbookSearchInput) url() (*url.URL, error) {
 	params := url.Values{}
 
-	params.Add("q", strings.Join(input.Query, " "))
-	params.Add("criteria", input.Criteria)
-	params.Add("format", input.Format)
+	params.Add("req", strings.Join(input.Query, " "))
+	params.Add("column", input.Criteria)
 	params.Add("page", strconv.Itoa(input.Page))
 
 	baseURL, err := url.Parse(BaseURL)
@@ -75,12 +61,12 @@ func (input FictionSearchInput) url() (*url.URL, error) {
 		return nil, err
 	}
 
-	baseURL.Path += "fiction/"
+	baseURL.Path += "search.php"
 	baseURL.RawQuery = params.Encode()
 	return baseURL, nil
 }
 
-func (input FictionSearchInput) bodyParser(body io.ReadCloser) (*SearchResults, error) {
+func (input TextbookSearchInput) bodyParser(body io.ReadCloser) (*SearchResults, error) {
 	doc, err := goquery.NewDocumentFromReader(body)
 	if err != nil {
 		return nil, err
@@ -88,10 +74,11 @@ func (input FictionSearchInput) bodyParser(body io.ReadCloser) (*SearchResults, 
 
 	rows := doc.Find("tr")
 	var results = []DownloadableResult{}
-	rows.Each(parseFictionBooksFromTableRows(&results))
+	rows.Each(parseTextbooksFromTableRows(&results))
 
 	currentPage := input.CurrentPage()
-	lastPage, err := parseNumberOfFictionPages(doc)
+	lastPage, err := parseNumberOfTextbookPages(doc)
+
 	if err != nil {
 		return &SearchResults{
 			PageNumber:  1,
@@ -106,18 +93,12 @@ func (input FictionSearchInput) bodyParser(body io.ReadCloser) (*SearchResults, 
 	}, nil
 }
 
-func parseNumberOfFictionPages(doc *goquery.Document) (int, error) {
-	sel := doc.Find(".page_selector")
-	pageSelectionText := sel.First().Text()
-	pages := strings.Split(pageSelectionText[5:], " / ")
-	totalPages, err := strconv.Atoi(pages[1])
-	if err != nil {
-		return 1, err
-	}
-	return totalPages, nil
+func parseNumberOfTextbookPages(doc *goquery.Document) (int, error) {
+	sel := doc.Find("#paginator_example_top.td")
+	return sel.Length() - 1, nil
 }
 
-func parseFictionBooksFromTableRows(books *[]DownloadableResult) func(int, *goquery.Selection) {
+func parseTextbooksFromTableRows(books *[]DownloadableResult) func(int, *goquery.Selection) {
 
 	trim := func(s string) string {
 		var text = strings.ReplaceAll(s, "\n", "")
@@ -126,25 +107,25 @@ func parseFictionBooksFromTableRows(books *[]DownloadableResult) func(int, *goqu
 	}
 
 	return func(i int, sel *goquery.Selection) {
-		if i == 0 {
+		if i < 5 {
 			return
 		}
 		var authors, mirrors []string
 		var title, language, fileType, fileSize string
 		sel.Find("td").Each(func(j int, col *goquery.Selection) {
 			switch j {
-			case 0:
+			case 1:
 				text := trim(col.Text())
-				authors = strings.Split(text, ";")
+				authors = []string{text}
 			case 2:
 				title = trim(col.Text())
-			case 3:
-				language = trim(col.Text())
-			case 4:
-				fileSection := strings.Split(trim(col.Text()), " / ")
-				fileType = trim(fileSection[0])
-				fileSize = trim(fileSection[1])
 			case 5:
+				language = trim(col.Text())
+			case 6:
+				fileSize = trim(col.Text())
+			case 7:
+				fileType = trim(col.Text())
+			case 9:
 				col.Find("a[href]").Each(func(k int, item *goquery.Selection) {
 					href, _ := item.Attr("href")
 					mirrors = append(mirrors, href)
