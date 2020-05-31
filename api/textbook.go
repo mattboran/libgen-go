@@ -1,7 +1,6 @@
 package api
 
 import (
-	"io"
 	"net/url"
 	"strconv"
 	"strings"
@@ -16,6 +15,11 @@ type TextbookSearchInput struct {
 	Criteria string
 	SortBy   string
 	Page     int
+}
+
+type textbookResultParser struct {
+	books *[]book
+	page  int
 }
 
 // TextbookSearchCriteria contains the possible Search Criteria strings
@@ -66,39 +70,31 @@ func (input TextbookSearchInput) url() (*url.URL, error) {
 	return baseURL, nil
 }
 
-func (input TextbookSearchInput) bodyParser(body io.ReadCloser) (*SearchResults, error) {
-	doc, err := goquery.NewDocumentFromReader(body)
-	if err != nil {
-		return nil, err
+func (input TextbookSearchInput) resultParser() resultParser {
+	return &textbookResultParser{
+		books: &[]book{},
+		page:  input.Page,
 	}
-
-	rows := doc.Find("tr")
-	var results = []DownloadableResult{}
-	rows.Each(parseTextbooksFromTableRows(&results))
-
-	currentPage := input.CurrentPage()
-	lastPage, err := parseNumberOfTextbookPages(doc)
-
-	if err != nil {
-		return &SearchResults{
-			PageNumber:  1,
-			Books:       results,
-			HasNextPage: false,
-		}, nil
-	}
-	return &SearchResults{
-		PageNumber:  currentPage,
-		Books:       results,
-		HasNextPage: currentPage < lastPage,
-	}, nil
 }
 
-func parseNumberOfTextbookPages(doc *goquery.Document) (int, error) {
+func (parser textbookResultParser) currentPage() int {
+	return parser.page
+}
+
+func (parser textbookResultParser) parsedResults() []DownloadableResult {
+	result := []DownloadableResult{}
+	for _, book := range *parser.books {
+		result = append(result, book)
+	}
+	return result
+}
+
+func (parser textbookResultParser) parseNumPages(doc *goquery.Document) (int, error) {
 	sel := doc.Find("#paginator_example_top.td")
 	return sel.Length() - 1, nil
 }
 
-func parseTextbooksFromTableRows(books *[]DownloadableResult) func(int, *goquery.Selection) {
+func (parser textbookResultParser) parseBooksFromTableRows() func(int, *goquery.Selection) {
 
 	trim := func(s string) string {
 		var text = strings.ReplaceAll(s, "\n", "")
@@ -146,7 +142,7 @@ func parseTextbooksFromTableRows(books *[]DownloadableResult) func(int, *goquery
 			return
 		}
 
-		*books = append(*books, book{
+		*parser.books = append(*parser.books, book{
 			authors:  authors,
 			title:    title,
 			language: language,

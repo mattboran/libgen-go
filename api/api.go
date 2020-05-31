@@ -32,7 +32,7 @@ type SearchInput interface {
 	CurrentPage() int
 	NextPage() SearchInput
 	PreviousPage() SearchInput
-	bodyParser(io.ReadCloser) (*SearchResults, error)
+	resultParser() resultParser
 	url() (*url.URL, error)
 }
 
@@ -51,6 +51,15 @@ type DownloadableResult interface {
 	Filename() string
 }
 
+// resultParser encapsultes the methods required to parse the body of
+// an api request into DownloadableResult.
+type resultParser interface {
+	parsedResults() []DownloadableResult
+	currentPage() int
+	parseNumPages(*goquery.Document) (int, error)
+	parseBooksFromTableRows() func(int, *goquery.Selection)
+}
+
 type book struct {
 	authors  []string
 	title    string
@@ -58,11 +67,6 @@ type book struct {
 	fileType string
 	fileSize string
 	mirrors  []string
-}
-
-type pageNumbers struct {
-	currentPage int
-	lastPage    int
 }
 
 // Search takes the SearchInput and returns a pointer to
@@ -83,12 +87,37 @@ func Search(input SearchInput) (*SearchResults, error) {
 		return nil, errors.New(errorMessage)
 	}
 
-	searchResults, err := input.bodyParser(res.Body)
+	searchResults, err := parseBody(res.Body, input.resultParser())
 	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
 	return searchResults, nil
+}
+
+func parseBody(body io.ReadCloser, parser resultParser) (*SearchResults, error) {
+	doc, err := goquery.NewDocumentFromReader(body)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := doc.Find("tr")
+	rows.Each(parser.parseBooksFromTableRows())
+
+	currentPage := parser.currentPage()
+	lastPage, err := parser.parseNumPages(doc)
+	if err != nil {
+		return &SearchResults{
+			PageNumber:  1,
+			Books:       parser.parsedResults(),
+			HasNextPage: false,
+		}, nil
+	}
+	return &SearchResults{
+		PageNumber:  currentPage,
+		Books:       parser.parsedResults(),
+		HasNextPage: currentPage < lastPage,
+	}, nil
 }
 
 // Name is the displayable name for a Downloadable book

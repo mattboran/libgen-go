@@ -1,7 +1,6 @@
 package api
 
 import (
-	"io"
 	"net/url"
 	"strconv"
 	"strings"
@@ -16,6 +15,11 @@ type FictionSearchInput struct {
 	Criteria string
 	Format   string
 	Page     int
+}
+
+type fictionResultParser struct {
+	books *[]book
+	page  int
 }
 
 // FictionSearchCriteria contains the possible Search Criteria strings
@@ -80,33 +84,26 @@ func (input FictionSearchInput) url() (*url.URL, error) {
 	return baseURL, nil
 }
 
-func (input FictionSearchInput) bodyParser(body io.ReadCloser) (*SearchResults, error) {
-	doc, err := goquery.NewDocumentFromReader(body)
-	if err != nil {
-		return nil, err
+func (input FictionSearchInput) resultParser() resultParser {
+	return &fictionResultParser{
+		books: &[]book{},
+		page:  input.Page,
 	}
-
-	rows := doc.Find("tr")
-	var results = []DownloadableResult{}
-	rows.Each(parseFictionBooksFromTableRows(&results))
-
-	currentPage := input.CurrentPage()
-	lastPage, err := parseNumberOfFictionPages(doc)
-	if err != nil {
-		return &SearchResults{
-			PageNumber:  1,
-			Books:       results,
-			HasNextPage: false,
-		}, nil
-	}
-	return &SearchResults{
-		PageNumber:  currentPage,
-		Books:       results,
-		HasNextPage: currentPage < lastPage,
-	}, nil
 }
 
-func parseNumberOfFictionPages(doc *goquery.Document) (int, error) {
+func (parser fictionResultParser) currentPage() int {
+	return parser.page
+}
+
+func (parser fictionResultParser) parsedResults() []DownloadableResult {
+	result := []DownloadableResult{}
+	for _, book := range *parser.books {
+		result = append(result, book)
+	}
+	return result
+}
+
+func (parser fictionResultParser) parseNumPages(doc *goquery.Document) (int, error) {
 	sel := doc.Find(".page_selector")
 	pageSelectionText := sel.First().Text()
 	pages := strings.Split(pageSelectionText[5:], " / ")
@@ -117,7 +114,7 @@ func parseNumberOfFictionPages(doc *goquery.Document) (int, error) {
 	return totalPages, nil
 }
 
-func parseFictionBooksFromTableRows(books *[]DownloadableResult) func(int, *goquery.Selection) {
+func (parser fictionResultParser) parseBooksFromTableRows() func(int, *goquery.Selection) {
 
 	trim := func(s string) string {
 		var text = strings.ReplaceAll(s, "\n", "")
@@ -152,7 +149,7 @@ func parseFictionBooksFromTableRows(books *[]DownloadableResult) func(int, *goqu
 			}
 		})
 
-		*books = append(*books, book{
+		*parser.books = append(*parser.books, book{
 			authors:  authors,
 			title:    title,
 			language: language,
