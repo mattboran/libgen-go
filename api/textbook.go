@@ -106,8 +106,14 @@ func parseTextbooksFromTableRows(books *[]DownloadableResult) func(int, *goquery
 		return text
 	}
 
+	extractMirror := func(sel *goquery.Selection) string {
+		link := sel.Find("a[href]").First()
+		href, _ := link.Attr("href")
+		return href
+	}
+
 	return func(i int, sel *goquery.Selection) {
-		if i < 5 {
+		if i < 4 {
 			return
 		}
 		var authors, mirrors []string
@@ -121,15 +127,12 @@ func parseTextbooksFromTableRows(books *[]DownloadableResult) func(int, *goquery
 				title = trim(col.Text())
 			case 5:
 				language = trim(col.Text())
-			case 6:
-				fileSize = trim(col.Text())
 			case 7:
+				fileSize = trim(col.Text())
+			case 8:
 				fileType = trim(col.Text())
-			case 9:
-				col.Find("a[href]").Each(func(k int, item *goquery.Selection) {
-					href, _ := item.Attr("href")
-					mirrors = append(mirrors, href)
-				})
+			case 9, 10, 11, 12, 13:
+				mirrors = append(mirrors, extractMirror(col))
 			}
 		})
 

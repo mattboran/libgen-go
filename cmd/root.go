@@ -116,7 +116,7 @@ func isContainedInSlice(s string, slice []string) bool {
 }
 
 func truncateForTerminalOut(s string) string {
-	if len(s) < (terminalWidth - 5) {
+	if len(s) < (terminalWidth - 7) {
 		return s
 	}
 	return s[:terminalWidth-5] + "..."
