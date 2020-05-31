@@ -122,9 +122,15 @@ func parseTextbooksFromTableRows(books *[]DownloadableResult) func(int, *goquery
 			switch j {
 			case 1:
 				text := trim(col.Text())
-				authors = []string{text}
+				authors = strings.Split(text, ",")
 			case 2:
-				title = trim(col.Text())
+				link := sel.Find("a[title]").First()
+				isbns := link.Find("i").Last().Text()
+				titleText := link.Text()
+				// Suffix is usually the ISBNs. Occasionally this also
+				// snips a [2nd ed.] or equivalent if there are no isbns.
+				lengthOfSuffix := len(titleText) - len(isbns)
+				title = trim(titleText[:lengthOfSuffix])
 			case 5:
 				language = trim(col.Text())
 			case 7:
@@ -135,6 +141,10 @@ func parseTextbooksFromTableRows(books *[]DownloadableResult) func(int, *goquery
 				mirrors = append(mirrors, extractMirror(col))
 			}
 		})
+
+		if len(authors) == 0 || len(mirrors) == 0 {
+			return
+		}
 
 		*books = append(*books, book{
 			authors:  authors,
