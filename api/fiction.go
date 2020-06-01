@@ -114,7 +114,7 @@ func (parser fictionResultParser) parseNumPages(doc *goquery.Document) (int, err
 	return totalPages, nil
 }
 
-func (parser fictionResultParser) parseBooksFromTableRows() func(int, *goquery.Selection) {
+func (parser fictionResultParser) parseResultsFromTableRows() func(int, *goquery.Selection) {
 
 	trim := func(s string) string {
 		var text = strings.ReplaceAll(s, "\n", "")

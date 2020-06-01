@@ -89,12 +89,15 @@ func (parser textbookResultParser) parsedResults() []DownloadableResult {
 	return result
 }
 
+// TODO: - replace this with hasNextPage
 func (parser textbookResultParser) parseNumPages(doc *goquery.Document) (int, error) {
-	sel := doc.Find("#paginator_example_top.td")
-	return sel.Length() - 1, nil
+	if len(*parser.books) < 25 {
+		return parser.currentPage(), nil
+	}
+	return parser.currentPage() + 1, nil
 }
 
-func (parser textbookResultParser) parseBooksFromTableRows() func(int, *goquery.Selection) {
+func (parser textbookResultParser) parseResultsFromTableRows() func(int, *goquery.Selection) {
 
 	trim := func(s string) string {
 		var text = strings.ReplaceAll(s, "\n", "")
@@ -109,7 +112,7 @@ func (parser textbookResultParser) parseBooksFromTableRows() func(int, *goquery.
 	}
 
 	return func(i int, sel *goquery.Selection) {
-		if i < 4 {
+		if i < 3 {
 			return
 		}
 		var authors, mirrors []string

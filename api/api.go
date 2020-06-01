@@ -40,7 +40,7 @@ type SearchInput interface {
 // current and the following page.
 type SearchResults struct {
 	PageNumber  int
-	Books       []DownloadableResult
+	Results     []DownloadableResult
 	HasNextPage bool
 }
 
@@ -57,7 +57,7 @@ type resultParser interface {
 	parsedResults() []DownloadableResult
 	currentPage() int
 	parseNumPages(*goquery.Document) (int, error)
-	parseBooksFromTableRows() func(int, *goquery.Selection)
+	parseResultsFromTableRows() func(int, *goquery.Selection)
 }
 
 type book struct {
@@ -102,20 +102,20 @@ func parseBody(body io.ReadCloser, parser resultParser) (*SearchResults, error) 
 	}
 
 	rows := doc.Find("tr")
-	rows.Each(parser.parseBooksFromTableRows())
+	rows.Each(parser.parseResultsFromTableRows())
 
 	currentPage := parser.currentPage()
 	lastPage, err := parser.parseNumPages(doc)
 	if err != nil {
 		return &SearchResults{
 			PageNumber:  1,
-			Books:       parser.parsedResults(),
+			Results:     parser.parsedResults(),
 			HasNextPage: false,
 		}, nil
 	}
 	return &SearchResults{
 		PageNumber:  currentPage,
-		Books:       parser.parsedResults(),
+		Results:     parser.parsedResults(),
 		HasNextPage: currentPage < lastPage,
 	}, nil
 }

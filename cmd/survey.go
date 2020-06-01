@@ -20,7 +20,7 @@ func surveyPromptFromResults(results *api.SearchResults) *survey.Select {
 	if results.PageNumber > 1 {
 		options = append(options, "back")
 	}
-	for i, book := range results.Books {
+	for i, book := range results.Results {
 		option := fmt.Sprintf("%d - %s", i, book.Name())
 		options = append(options, truncateForTerminalOut(option))
 	}
@@ -102,7 +102,7 @@ func askSurvey(input api.SearchInput) error {
 	}
 
 	// Use the choice to select a DownloadableResult based on index
-	result, err := getResultFromChoice(choice, results.Books)
+	result, err := getResultFromChoice(choice, results.Results)
 	if err != nil {
 		return err
 	}
