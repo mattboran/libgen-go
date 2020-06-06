@@ -8,13 +8,33 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+// TextbookSortOrder are the accepted parameters for sort order
+var TextbookSortOrder = []string{
+	SortOrderAuthor,
+	SortOrderTitle,
+	SortOrderPublisher,
+	SortOrderYear,
+	SortOrderPage,
+	SortOrderLanguage,
+	SortOrderID,
+	SortOrderExtension,
+	SortOrderSize,
+}
+
+// SortOrder can either be ASC (default) or DESC
+var SortOrder = []string{
+	SortOrderAsc,
+	SortOrderDesc,
+}
+
 // TextbookSearchInput contains the fields required to search
 // Library Genesis' fiction endpoint.
 type TextbookSearchInput struct {
-	Query    []string
-	Criteria string
-	SortBy   string
-	Page     int
+	Query     []string
+	Criteria  string
+	SortBy    string
+	SortOrder string
+	Page      int
 }
 
 type textbookResultParser struct {
@@ -36,20 +56,22 @@ func (input TextbookSearchInput) CurrentPage() int {
 // NextPage returns a copy of FictionSearchInput but with Page incremented
 func (input TextbookSearchInput) NextPage() SearchInput {
 	return TextbookSearchInput{
-		Query:    input.Query,
-		Criteria: input.Criteria,
-		SortBy:   input.SortBy,
-		Page:     input.Page + 1,
+		Query:     input.Query,
+		Criteria:  input.Criteria,
+		SortBy:    input.SortBy,
+		SortOrder: input.SortOrder,
+		Page:      input.Page + 1,
 	}
 }
 
 // PreviousPage returns a copy of FictionSearchInput but with Page decremented
 func (input TextbookSearchInput) PreviousPage() SearchInput {
 	return TextbookSearchInput{
-		Query:    input.Query,
-		Criteria: input.Criteria,
-		SortBy:   input.SortBy,
-		Page:     input.Page - 1,
+		Query:     input.Query,
+		Criteria:  input.Criteria,
+		SortBy:    input.SortBy,
+		SortOrder: input.SortOrder,
+		Page:      input.Page - 1,
 	}
 }
 
@@ -59,6 +81,8 @@ func (input TextbookSearchInput) url() (*url.URL, error) {
 	params.Add("req", strings.Join(input.Query, " "))
 	params.Add("column", input.Criteria)
 	params.Add("page", strconv.Itoa(input.Page))
+	params.Add("sort", input.SortBy)
+	params.Add("sortmode", input.SortOrder)
 
 	baseURL, err := url.Parse(BaseURL)
 	if err != nil {

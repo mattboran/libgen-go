@@ -16,6 +16,7 @@ limitations under the License.
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -38,6 +39,7 @@ func init() {
 	rootCmd.AddCommand(textbookCmd)
 	textbookCmd.Flags().StringP("criteria", "c", "", "Criteria")
 	textbookCmd.Flags().StringP("sort", "s", "", "Sort criteria")
+	textbookCmd.Flags().BoolP("reverse", "r", false, "Reverse sort order")
 	textbookCmd.Flags().IntP("page", "p", 1, "Page number")
 }
 
@@ -56,17 +58,30 @@ func processTextbookOpt(cmd *cobra.Command, args []string) (*api.TextbookSearchI
 		return nil, err
 	}
 	sortBy = strings.ToLower(sortBy)
+	if sortBy != "" && !isContainedInSlice(sortBy, api.TextbookSortOrder) {
+		return nil, handleUnsupportedSortBy(sortBy)
+	}
 
 	page, err := cmd.Flags().GetInt("page")
 	if err != nil {
 		return nil, err
 	}
 
+	reverse, err := cmd.Flags().GetBool("reverse")
+	if err != nil {
+		return nil, err
+	}
+	sortOrder := api.SortOrderDesc
+	if reverse {
+		sortOrder = api.SortOrderAsc
+	}
+
 	return &api.TextbookSearchInput{
-		Query:    args,
-		Criteria: criteria,
-		SortBy:   sortBy,
-		Page:     page,
+		Query:     args,
+		Criteria:  criteria,
+		SortBy:    sortBy,
+		SortOrder: sortOrder,
+		Page:      page,
 	}, nil
 }
 
@@ -84,4 +99,12 @@ func handleTextbookSearch(cmd *cobra.Command, args []string) {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
+}
+
+func handleUnsupportedSortBy(choice string) error {
+	supportedCriteriaString := strings.Join(api.TextbookSortOrder, ", ")
+	errorMessage := fmt.Sprintf("%s is not an accepted sort order. Choose from [%s]",
+		choice,
+		supportedCriteriaString)
+	return errors.New(errorMessage)
 }
