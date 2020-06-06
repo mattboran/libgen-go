@@ -56,7 +56,7 @@ type DownloadableResult interface {
 type resultParser interface {
 	parsedResults() []DownloadableResult
 	currentPage() int
-	parseNumPages(*goquery.Document) (int, error)
+	hasNextPage() bool
 	parseResultsFromTableRows() func(int, *goquery.Selection)
 }
 
@@ -104,19 +104,10 @@ func parseBody(body io.ReadCloser, parser resultParser) (*SearchResults, error) 
 	rows := doc.Find("tr")
 	rows.Each(parser.parseResultsFromTableRows())
 
-	currentPage := parser.currentPage()
-	lastPage, err := parser.parseNumPages(doc)
-	if err != nil {
-		return &SearchResults{
-			PageNumber:  1,
-			Results:     parser.parsedResults(),
-			HasNextPage: false,
-		}, nil
-	}
 	return &SearchResults{
-		PageNumber:  currentPage,
+		PageNumber:  parser.currentPage(),
 		Results:     parser.parsedResults(),
-		HasNextPage: currentPage < lastPage,
+		HasNextPage: parser.hasNextPage(),
 	}, nil
 }
 

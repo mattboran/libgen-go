@@ -89,12 +89,8 @@ func (parser textbookResultParser) parsedResults() []DownloadableResult {
 	return result
 }
 
-// TODO: - replace this with hasNextPage
-func (parser textbookResultParser) parseNumPages(doc *goquery.Document) (int, error) {
-	if len(*parser.books) < 25 {
-		return parser.currentPage(), nil
-	}
-	return parser.currentPage() + 1, nil
+func (parser textbookResultParser) hasNextPage() bool {
+	return (len(*parser.books) % 25) == 0
 }
 
 func (parser textbookResultParser) parseResultsFromTableRows() func(int, *goquery.Selection) {

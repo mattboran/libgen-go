@@ -103,15 +103,8 @@ func (parser fictionResultParser) parsedResults() []DownloadableResult {
 	return result
 }
 
-func (parser fictionResultParser) parseNumPages(doc *goquery.Document) (int, error) {
-	sel := doc.Find(".page_selector")
-	pageSelectionText := sel.First().Text()
-	pages := strings.Split(pageSelectionText[5:], " / ")
-	totalPages, err := strconv.Atoi(pages[1])
-	if err != nil {
-		return 1, err
-	}
-	return totalPages, nil
+func (parser fictionResultParser) hasNextPage() bool {
+	return (len(*parser.books) % 25) == 0
 }
 
 func (parser fictionResultParser) parseResultsFromTableRows() func(int, *goquery.Selection) {
