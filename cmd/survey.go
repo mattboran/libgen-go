@@ -77,10 +77,16 @@ func surveyQuestionForDownloadFilepath(dir string, d api.DownloadableResult) *su
 	}
 }
 
+// askSurvey does the main work of this CLI. It queries for books
+// and prepares to follow down a path depending on the results.
 func askSurvey(input api.SearchInput) error {
 	results, err := api.Search(input)
 	if err != nil {
 		return err
+	}
+
+	if len(results.Results) == 0 && input.CurrentPage() == 1 {
+		return errors.New("No results were found")
 	}
 
 	// Recursively call this function until a book is selected
