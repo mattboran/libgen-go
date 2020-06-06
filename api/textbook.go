@@ -119,12 +119,6 @@ func (parser textbookResultParser) hasNextPage() bool {
 
 func (parser textbookResultParser) parseResultsFromTableRows() func(int, *goquery.Selection) {
 
-	trim := func(s string) string {
-		var text = strings.ReplaceAll(s, "\n", "")
-		text = strings.ReplaceAll(text, "\t", "")
-		return text
-	}
-
 	extractMirror := func(sel *goquery.Selection) string {
 		link := sel.Find("a[href]").First()
 		href, _ := link.Attr("href")

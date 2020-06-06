@@ -109,12 +109,6 @@ func (parser fictionResultParser) hasNextPage() bool {
 
 func (parser fictionResultParser) parseResultsFromTableRows() func(int, *goquery.Selection) {
 
-	trim := func(s string) string {
-		var text = strings.ReplaceAll(s, "\n", "")
-		text = strings.ReplaceAll(text, "\t", "")
-		return text
-	}
-
 	return func(i int, sel *goquery.Selection) {
 		if i == 0 {
 			return

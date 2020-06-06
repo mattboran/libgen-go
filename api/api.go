@@ -200,3 +200,9 @@ func DownloadFile(uri string, filepath string) error {
 	_, err = io.Copy(out, res.Body)
 	return err
 }
+
+func trim(s string) string {
+	var text = strings.ReplaceAll(s, "\n", "")
+	text = strings.ReplaceAll(text, "\t", "")
+	return text
+}

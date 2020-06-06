@@ -30,9 +30,11 @@ import (
 var textbookCmd = &cobra.Command{
 	Use:   "textbook [string to search for]",
 	Short: "Search for a textbook on Library Genesis",
-	Long:  `Search for a textbook on Library Genesis by book title or author name`,
-	Args:  cobra.MinimumNArgs(1),
-	Run:   handleTextbookSearch,
+	Long: `Search for a textbook on Library Genesis by book title,
+	author name, ISBN, or publisher. The output can be sorted with the
+	-s flag.`,
+	Args: cobra.MinimumNArgs(1),
+	Run:  handleTextbookSearch,
 }
 
 func init() {
