@@ -77,10 +77,7 @@ func initConfig() {
 
 	viper.AutomaticEnv() // read in environment variables that match
 
-	// TODO: store defualt download location in config
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
-	}
+	err = viper.ReadInConfig()
 	viper.SetDefault("download", home)
 }
 
@@ -116,8 +113,11 @@ func isContainedInSlice(s string, slice []string) bool {
 }
 
 func truncateForTerminalOut(s string) string {
-	if len(s) < (terminalWidth - 7) {
+	if len(s) <= (terminalWidth - 7) {
 		return s
+	}
+	if len(s) == (terminalWidth - 6) {
+		return s + ".."
 	}
 	return s[:terminalWidth-5] + "..."
 }

@@ -20,8 +20,8 @@ func surveyPromptFromResults(results *api.SearchResults) *survey.Select {
 	if results.PageNumber > 1 {
 		options = append(options, "back")
 	}
-	for i, book := range results.Results {
-		option := fmt.Sprintf("%d - %s", i, book.Name())
+	for i, result := range results.Results {
+		option := fmt.Sprintf("%d - %s", i, result.Name())
 		options = append(options, truncateForTerminalOut(option))
 	}
 	if results.HasNextPage {
