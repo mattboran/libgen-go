@@ -8,20 +8,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// FictionSearchInput contains the fields required to search
-// Library Genesis' fiction endpoint.
-type FictionSearchInput struct {
-	Query    []string
-	Criteria string
-	Format   string
-	Page     int
-}
-
-type fictionResultParser struct {
-	books *[]book
-	page  int
-}
-
 // FictionSearchCriteria contains the possible Search Criteria strings
 var FictionSearchCriteria = []string{
 	SearchCriteriaAuthors,
@@ -39,6 +25,24 @@ var FictionFormats = []string{
 	FormatPDF,
 	FormatRTF,
 	FormatTXT,
+}
+
+// FictionSearchInput contains the fields required to search
+// Library Genesis' fiction endpoint.
+type FictionSearchInput struct {
+	Query    []string
+	Criteria string
+	Format   string
+	Page     int
+}
+
+type fictionResultParser struct {
+	books *[]book
+	page  int
+}
+
+type fictionMirror struct {
+	mirror string
 }
 
 // CurrentPage returns the selected page number for the given search input
@@ -145,4 +149,14 @@ func (parser fictionResultParser) parseResultsFromTableRows() func(int, *goquery
 			mirrors:  mirrors,
 		})
 	}
+}
+
+func (m fictionMirror) Link() string {
+	return m.mirror
+}
+
+// DownloadURL performs the required HTTP requests to find the download
+// URL for a given mirror url
+func (m fictionMirror) DownloadURL(ch chan<- HTTPResult) {
+	downloadURLFromGET(m.mirror, ch)
 }

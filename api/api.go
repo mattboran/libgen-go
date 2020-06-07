@@ -58,7 +58,7 @@ type SearchResults struct {
 // DownloadableResult is implemented specifically by each result type
 type DownloadableResult interface {
 	Name() string
-	Mirrors() []string
+	Mirrors() []Mirror
 	Filename() string
 }
 
@@ -78,6 +78,20 @@ type book struct {
 	fileType string
 	fileSize string
 	mirrors  []string
+}
+
+// HTTPResult is used as a channel input for async HTTP requests and
+// document parsing.
+type HTTPResult struct {
+	Result string
+	Error  error
+}
+
+// Mirror provides a wrapper around a mirror url that allows us to
+// asynchronously get the download URL from the mirror's page.
+type Mirror interface {
+	Link() string
+	DownloadURL(ch chan<- HTTPResult)
 }
 
 // Search takes the SearchInput and returns a pointer to
@@ -129,8 +143,12 @@ func (b book) Name() string {
 }
 
 // Mirrors returns the list of mirrors available for a given book
-func (b book) Mirrors() []string {
-	return b.mirrors
+func (b book) Mirrors() []Mirror {
+	var result []Mirror
+	for _, mirror := range b.mirrors {
+		result = append(result, articleMirror{mirror})
+	}
+	return result
 }
 
 // ShortName provides a default filename for use in downloading
@@ -139,16 +157,26 @@ func (b book) Filename() string {
 	return fmt.Sprintf("%s.%s", title, strings.ToLower(b.fileType))
 }
 
-// HTTPResult is used as a channel input for async HTTP requests and
-// document parsing.
-type HTTPResult struct {
-	Result string
-	Error  error
+// DownloadFile downloads the file from the provided uri to the provided path
+func DownloadFile(uri string, filepath string) error {
+	res, err := http.Get(uri)
+	if err != nil {
+		return err
+	}
+
+	defer res.Body.Close()
+
+	out, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, res.Body)
+	return err
 }
 
-// GetDownloadURL performs the required HTTP requests to find the download
-// URL for a given mirror url
-func GetDownloadURL(mirror string, ch chan<- HTTPResult) {
+func downloadURLFromGET(mirror string, ch chan<- HTTPResult) {
 	res, err := http.Get(mirror)
 	if err != nil {
 		ch <- HTTPResult{"", err}
@@ -180,25 +208,6 @@ func GetDownloadURL(mirror string, ch chan<- HTTPResult) {
 	}
 	ch <- HTTPResult{href, nil}
 	return
-}
-
-// DownloadFile downloads the file from the provided uri to the provided path
-func DownloadFile(uri string, filepath string) error {
-	res, err := http.Get(uri)
-	if err != nil {
-		return err
-	}
-
-	defer res.Body.Close()
-
-	out, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, res.Body)
-	return err
 }
 
 func trim(s string) string {

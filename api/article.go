@@ -29,6 +29,10 @@ type articleResultParser struct {
 	page     int
 }
 
+type articleMirror struct {
+	mirror string
+}
+
 // Name is the displayable name for a Downloadable article
 func (a article) Name() string {
 	authors := strings.Join(a.authors, ", ")
@@ -36,8 +40,12 @@ func (a article) Name() string {
 }
 
 // Mirrors returns the list of mirrors available for a given article
-func (a article) Mirrors() []string {
-	return a.mirrors
+func (a article) Mirrors() []Mirror {
+	var result []Mirror
+	for _, mirror := range a.mirrors {
+		result = append(result, articleMirror{mirror})
+	}
+	return result
 }
 
 // ShortName provides a default filename for use in downloading
@@ -145,4 +153,14 @@ func (parser articleResultParser) parseResultsFromTableRows() func(int, *goquery
 			mirrors:  mirrors,
 		})
 	}
+}
+
+func (m articleMirror) Link() string {
+	return m.mirror
+}
+
+// DownloadURL performs the required HTTP requests to find the download
+// URL for a given mirror url
+func (m articleMirror) DownloadURL(ch chan<- HTTPResult) {
+	downloadURLFromGET(m.mirror, ch)
 }

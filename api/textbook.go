@@ -42,6 +42,10 @@ type textbookResultParser struct {
 	page  int
 }
 
+type textbookMirror struct {
+	mirror string
+}
+
 // TextbookSearchCriteria contains the possible Search Criteria strings
 var TextbookSearchCriteria = []string{
 	SearchCriteriaAuthors,
@@ -168,4 +172,14 @@ func (parser textbookResultParser) parseResultsFromTableRows() func(int, *goquer
 			mirrors:  mirrors,
 		})
 	}
+}
+
+func (m textbookMirror) Link() string {
+	return m.mirror
+}
+
+// DownloadURL performs the required HTTP requests to find the download
+// URL for a given mirror url
+func (m textbookMirror) DownloadURL(ch chan<- HTTPResult) {
+	downloadURLFromGET(m.mirror, ch)
 }

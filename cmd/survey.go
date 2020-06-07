@@ -37,8 +37,8 @@ func surveyPromptFromResults(results *api.SearchResults) *survey.Select {
 func surveyPromptForMirrorSelection(selection api.DownloadableResult) *survey.Select {
 	var options []string
 	for i, result := range selection.Mirrors() {
-		option := fmt.Sprintf("[%d] - %s", i, truncateForTerminalOut(result))
-		options = append(options, option)
+		option := fmt.Sprintf("[%d] - %s", i, result.Link())
+		options = append(options, truncateForTerminalOut(option))
 	}
 	return &survey.Select{
 		Message: "Choose a mirror",
@@ -121,7 +121,7 @@ func askSurvey(input api.SearchInput) error {
 	// Get the download URL asynchronously as the user is prompted
 	// for download location.
 	ch := make(chan api.HTTPResult, 0)
-	go api.GetDownloadURL(mirror, ch)
+	go mirror.DownloadURL(ch)
 
 	// Prompt for the download directory and filename
 	dir := ""
@@ -159,7 +159,7 @@ func getResultFromChoice(c string, results []api.DownloadableResult) (api.Downlo
 	return results[index], nil
 }
 
-func surveyChooseMirror(result api.DownloadableResult) (string, error) {
+func surveyChooseMirror(result api.DownloadableResult) (api.Mirror, error) {
 	choice := 0
 	prompt := surveyPromptForMirrorSelection(result)
 	err := survey.AskOne(prompt, &choice)

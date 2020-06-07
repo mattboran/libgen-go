@@ -39,7 +39,6 @@ func init() {
 }
 
 func processArticleOpt(cmd *cobra.Command, args []string) (*api.ArticleSearchInput, error) {
-
 	page, err := cmd.Flags().GetInt("page")
 	if err != nil {
 		return nil, err
