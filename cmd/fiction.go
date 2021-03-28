@@ -21,7 +21,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/AlecAivazis/survey/terminal"
+	"gopkg.in/AlecAivazis/survey.v1/terminal"
 
 	"github.com/mattboran/libgen-go/api"
 

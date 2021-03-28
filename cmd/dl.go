@@ -22,8 +22,8 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/AlecAivazis/survey"
-	"github.com/AlecAivazis/survey/terminal"
+	"gopkg.in/AlecAivazis/survey.v1"
+	"gopkg.in/AlecAivazis/survey.v1/terminal"
 	"github.com/spf13/cobra"
 )
 

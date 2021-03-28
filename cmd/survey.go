@@ -10,9 +10,9 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/AlecAivazis/survey"
-	"github.com/AlecAivazis/survey/terminal"
 	"github.com/mattboran/libgen-go/api"
+	"gopkg.in/AlecAivazis/survey.v1"
+	"gopkg.in/AlecAivazis/survey.v1/terminal"
 )
 
 func surveyPromptFromResults(results *api.SearchResults) *survey.Select {
@@ -92,7 +92,7 @@ func askSurvey(input api.SearchInput) error {
 	// Recursively call this function until a book is selected
 	choice := ""
 	prompt := surveyPromptFromResults(results)
-	err = survey.AskOne(prompt, &choice)
+	err = survey.AskOne(prompt, &choice, nil)
 	if err == terminal.InterruptErr {
 		return err
 	}
@@ -162,6 +162,6 @@ func getResultFromChoice(c string, results []api.DownloadableResult) (api.Downlo
 func surveyChooseMirror(result api.DownloadableResult) (api.Mirror, error) {
 	choice := 0
 	prompt := surveyPromptForMirrorSelection(result)
-	err := survey.AskOne(prompt, &choice)
+	err := survey.AskOne(prompt, &choice, nil)
 	return result.Mirrors()[choice], err
 }

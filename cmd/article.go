@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/AlecAivazis/survey/terminal"
+	"gopkg.in/AlecAivazis/survey.v1/terminal"
 	"github.com/mattboran/libgen-go/api"
 	"github.com/spf13/cobra"
 )
